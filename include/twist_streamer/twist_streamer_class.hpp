@@ -26,6 +26,7 @@ private:
 
     /* Parameters from ROS parameter server */
     std::string csv_filename_;
+    double linVel_min_, linVel_max_, angVel_min_, angVel_max_;
 
     /* Node state variables */
     int run_period_;

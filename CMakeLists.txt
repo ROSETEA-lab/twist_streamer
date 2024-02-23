@@ -21,10 +21,10 @@ target_compile_features(twist_streamer PUBLIC c_std_99 cxx_std_17)  # Require C9
 install(TARGETS twist_streamer
   DESTINATION lib/${PROJECT_NAME})
 
-install(DIRECTORY launch
-  DESTINATION share/${PROJECT_NAME}/)
-
-install(DIRECTORY data
+install(DIRECTORY 
+  launch
+  data
+  config
   DESTINATION share/${PROJECT_NAME}/)
 
 if(BUILD_TESTING)

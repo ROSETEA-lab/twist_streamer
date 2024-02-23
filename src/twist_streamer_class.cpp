@@ -17,6 +17,30 @@ twist_streamer_class::twist_streamer_class()
     if (false == this->get_parameter(parameter_name, csv_filename_))
         RCLCPP_ERROR(this->get_logger(), "Node %s: unable to retrieve parameter %s.", this->get_name(), parameter_name.c_str());
 
+    // linVel_min
+    parameter_name = "linVel_min";
+    this->declare_parameter(parameter_name, 0.0);
+    if (false == this->get_parameter(parameter_name, linVel_min_))
+        RCLCPP_ERROR(this->get_logger(), "Node %s: unable to retrieve parameter %s.", this->get_name(), parameter_name.c_str());
+
+    // linVel_max
+    parameter_name = "linVel_max";
+    this->declare_parameter(parameter_name, 0.0);
+    if (false == this->get_parameter(parameter_name, linVel_max_))
+        RCLCPP_ERROR(this->get_logger(), "Node %s: unable to retrieve parameter %s.", this->get_name(), parameter_name.c_str());
+
+    // angVel_min
+    parameter_name = "angVel_min";
+    this->declare_parameter(parameter_name, 0.0);
+    if (false == this->get_parameter(parameter_name, angVel_min_))
+        RCLCPP_ERROR(this->get_logger(), "Node %s: unable to retrieve parameter %s.", this->get_name(), parameter_name.c_str());
+
+    // angVel_max
+    parameter_name = "angVel_max";
+    this->declare_parameter(parameter_name, 0.0);
+    if (false == this->get_parameter(parameter_name, angVel_max_))
+        RCLCPP_ERROR(this->get_logger(), "Node %s: unable to retrieve parameter %s.", this->get_name(), parameter_name.c_str());
+
     /* ROS topics */
     cmdVel_publisher_ = this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 1);
 
@@ -50,16 +74,16 @@ twist_streamer_class::twist_streamer_class()
 void twist_streamer_class::timer_callback()
 {
     /* Publish one element of CSV data */
+    auto twistMsg = geometry_msgs::msg::Twist();
+    twistMsg.linear.x = twistMsg.linear.y = twistMsg.linear.z = 0.0;
+    twistMsg.angular.x = twistMsg.angular.y = twistMsg.angular.z = 0.0;
+
     if (csv_data_idx_<csv_data_.size()) {
-        auto twistMsg = geometry_msgs::msg::Twist();
-        twistMsg.linear.x = csv_data_.at(csv_data_idx_).at(1);
-        twistMsg.linear.y = 0.0;
-        twistMsg.linear.z = 0.0;
-        twistMsg.angular.x = 0.0;
-        twistMsg.angular.y = 0.0;
-        twistMsg.angular.z = csv_data_.at(csv_data_idx_).at(2);
-        cmdVel_publisher_->publish(twistMsg);
+        twistMsg.linear.x = std::min(linVel_max_, std::max(linVel_min_, csv_data_.at(csv_data_idx_).at(1)));
+        twistMsg.angular.z = std::min(angVel_max_, std::max(angVel_min_, csv_data_.at(csv_data_idx_).at(2)));
     }
+
+    cmdVel_publisher_->publish(twistMsg);
 
     csv_data_idx_++;
 }
