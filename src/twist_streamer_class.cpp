@@ -83,6 +83,10 @@ void twist_streamer_class::timer_callback()
         twistMsg.angular.z = std::min(angVel_max_, std::max(angVel_min_, csv_data_.at(csv_data_idx_).at(2)));
     }
 
+    if (csv_data_idx_==csv_data_.size()) {
+        RCLCPP_INFO(this->get_logger(), "Node %s: data streaming completed, set linear and angular velocity to zero.", this->get_name());
+    }
+    
     cmdVel_publisher_->publish(twistMsg);
 
     csv_data_idx_++;
