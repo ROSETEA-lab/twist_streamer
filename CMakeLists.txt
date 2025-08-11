@@ -9,9 +9,12 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(ALGLIB REQUIRED)
 
 add_executable(twist_streamer src/twist_streamer_class.cpp src/twist_streamer.cpp)
 ament_target_dependencies(twist_streamer rclcpp geometry_msgs)
+
+target_link_libraries(twist_streamer ALGLIB)
 
 target_include_directories(twist_streamer PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

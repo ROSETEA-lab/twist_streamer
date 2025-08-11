@@ -1,8 +1,9 @@
 # Template node configuration parameters
 /twist_streamer:
   ros__parameters:
-    csv_filename: "data.csv"  # Name of the CSV file, do not change this name, the name of the CSV file must be changed in the launch file
-    linVel_min: -1.0           # Minimum linear velocity
-    linVel_max: +1.0           # Maximum linear velocity
-    angVel_min: -0.5           # Minimum angular velocity
-    angVel_max: +0.5           # Maximum angular velocity
+    csv_filename: "data.csv"   # Name of the CSV file, do not change this name, the name of the CSV file must be changed in the launch file
+    linVel_min: -5.0           # Minimum linear velocity
+    linVel_max: +5.0           # Maximum linear velocity
+    angVel_min: -2.0           # Minimum angular velocity
+    angVel_max: +2.0           # Maximum angular velocity
+    publish_frequency: 100.0   # Velocity publish frequency

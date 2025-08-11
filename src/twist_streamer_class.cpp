@@ -41,30 +41,51 @@ twist_streamer_class::twist_streamer_class()
     if (false == this->get_parameter(parameter_name, angVel_max_))
         RCLCPP_ERROR(this->get_logger(), "Node %s: unable to retrieve parameter %s.", this->get_name(), parameter_name.c_str());
 
+    // publish_frequency
+    parameter_name = "publish_frequency";
+    this->declare_parameter(parameter_name, 0.01);
+    if (false == this->get_parameter(parameter_name, publish_frequency_))
+        RCLCPP_ERROR(this->get_logger(), "Node %s: unable to retrieve parameter %s.", this->get_name(), parameter_name.c_str());
+
     /* ROS topics */
     cmdVel_publisher_ = this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 1);
 
     /* Initialize node state */
-    csv_data_idx_ = 0;
+    time_idx_ = 0;
 
-    // Read data from csv file
-    read_csv(csv_filename_, csv_data_);
+    // Read velocities from csv file
+    std::vector<std::vector<double>> csv_data;
+    if (!read_csv(csv_filename_, csv_data)) {
+        RCLCPP_FATAL(this->get_logger(), "Node %s: cannot open CSV file.", this->get_name());
 
-    // Check time vector is equally spaced
-    double delta_t = csv_data_.at(1).at(0)-csv_data_.at(0).at(0);
-    for (unsigned int i=1; i<csv_data_.size(); i++) {
-        if (std::fabs((csv_data_.at(i).at(0)-csv_data_.at(i-1).at(0))-delta_t) >= 1.0e-6) {
-            RCLCPP_ERROR(this->get_logger(), "Node %s: the time vector in the CSV file is not equally spaced.", this->get_name());
-        }
+        throw std::runtime_error("CSV file does not exist.");
+		return;
+	}
+
+    // Interpolate velocities with linear spline
+    alglib::real_1d_array time, v, omega;
+
+    time.setlength(csv_data.size());
+    v.setlength(csv_data.size());
+    omega.setlength(csv_data.size());
+
+	double t_start = 0.0;
+	if (time[0]>0.0) {
+		t_start = time[0];
+	}
+
+    for (unsigned int i=0; i<csv_data.size(); i++) {
+        time[i] = csv_data.at(i).at(0)-t_start;
+        v[i] = csv_data.at(i).at(1);
+        omega[i] = csv_data.at(i).at(2);
     }
+	t_end_ = time[time.length()-1];
 
-    // Compute run_period and check it is an integer value
-    run_period_ = round(delta_t*1000.0);
-    if (std::fabs(run_period_-delta_t*1000.0)>=1.0e-6) {
-        RCLCPP_ERROR(this->get_logger(), "Node %s: the time vector in the CSV file should be spaced by an integer period in milliseconds.", this->get_name());
-    }
+    spline1dbuildlinear(time, v, v_spline_);
+    spline1dbuildlinear(time, omega, omega_spline_);
 
     /* Create node timer */
+    run_period_ = round(1000.0/publish_frequency_);
     timer_ = this->create_wall_timer(
             std::chrono::milliseconds(run_period_), std::bind(&twist_streamer_class::timer_callback, this));
 
@@ -78,18 +99,18 @@ void twist_streamer_class::timer_callback()
     twistMsg.linear.x = twistMsg.linear.y = twistMsg.linear.z = 0.0;
     twistMsg.angular.x = twistMsg.angular.y = twistMsg.angular.z = 0.0;
 
-    if (csv_data_idx_<csv_data_.size()) {
-        twistMsg.linear.x = std::min(linVel_max_, std::max(linVel_min_, csv_data_.at(csv_data_idx_).at(1)));
-        twistMsg.angular.z = std::min(angVel_max_, std::max(angVel_min_, csv_data_.at(csv_data_idx_).at(2)));
+    if (time_idx_*run_period_<=round(t_end_*1000.0)) {
+        twistMsg.linear.x = std::min(linVel_max_, std::max(linVel_min_, spline1dcalc(v_spline_, time_idx_/publish_frequency_)));
+        twistMsg.angular.z = std::min(angVel_max_, std::max(angVel_min_, spline1dcalc(omega_spline_, time_idx_/publish_frequency_)));
     }
-
-    if (csv_data_idx_==csv_data_.size()) {
+	else {
         RCLCPP_INFO(this->get_logger(), "Node %s: data streaming completed, set linear and angular velocity to zero.", this->get_name());
     }
     
     cmdVel_publisher_->publish(twistMsg);
 
-    csv_data_idx_++;
+	// Update time index
+    time_idx_++;
 }
 
 twist_streamer_class::~twist_streamer_class()
@@ -99,12 +120,12 @@ twist_streamer_class::~twist_streamer_class()
     RCLCPP_INFO(this->get_logger(), "Node %s shutting down.", this->get_name());
 }
 
-void  twist_streamer_class::read_csv(std::string filename, std::vector<std::vector<double>>& csv_data)
+bool twist_streamer_class::read_csv(std::string filename, std::vector<std::vector<double>>& csv_data)
 {
     // Open an existing csv file
     std::ifstream fin(filename);
     if (!fin.is_open()) {
-        RCLCPP_ERROR(this->get_logger(), "Node %s: cannot open CSV file.", this->get_name());
+		return false;
     }
 
     // Read data from the file line by line
@@ -135,4 +156,28 @@ void  twist_streamer_class::read_csv(std::string filename, std::vector<std::vect
 
     // Close file
     fin.close();
+
+	return true;
+}
+
+bool twist_streamer_class::write_csv(std::string filename, std::vector<std::vector<double>> csv_data)
+{
+    // Open an existing csv file
+    std::ofstream fout(filename);
+    if (!fout.is_open()) {
+		return false;
+    }
+
+    // Write data to the file line by line
+    for (unsigned int i=0; i<csv_data.size(); i++) {
+        for (unsigned int j=0; j<csv_data.at(i).size()-1; j++) {
+            fout << csv_data.at(i).at(j) << ",";
+        }
+        fout << csv_data.at(i).at(csv_data.at(i).size()-1) << std::endl;
+    }
+
+    // Close file
+    fout.close();
+
+	return true;
 }
