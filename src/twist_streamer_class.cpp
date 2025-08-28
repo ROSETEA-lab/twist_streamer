@@ -69,13 +69,8 @@ twist_streamer_class::twist_streamer_class()
     v.setlength(csv_data.size());
     omega.setlength(csv_data.size());
 
-	double t_start = 0.0;
-	if (time[0]>0.0) {
-		t_start = time[0];
-	}
-
     for (unsigned int i=0; i<csv_data.size(); i++) {
-        time[i] = csv_data.at(i).at(0)-t_start;
+        time[i] = csv_data.at(i).at(0)-csv_data.at(0).at(0);
         v[i] = csv_data.at(i).at(1);
         omega[i] = csv_data.at(i).at(2);
     }
